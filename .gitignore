@@ -1,0 +1,48 @@
+# ── Large data artifacts (NEVER commit — see README "Data" section) ──────────
+# OMOP vocabulary DuckDB and the SapBERT embedding indexes (~21 GB). The
+# embeddings derive from licensed vocab names — regenerate locally; see README.
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp/
+*.npy
+*.npz
+omop_vocab.duckdb
+concept_embeddings.duckdb
+concept_embeddings_nonstandard.duckdb
+
+# ── Webapp runtime state ─────────────────────────────────────────────────────
+# Full LLM conversation histories — may contain prompts/PHI-adjacent content.
+webapp/data/
+sessions.db
+*.sqlite
+*.sqlite3
+
+# ── Challenge source data (see mmm_pipeline/source_sets) ─────────────────────
+# Obtain train/test/rules from the challenge repo
+# (github.com/ohdsi-studies/MindsMeetMachinesVocab); do not redistribute here.
+mmm_pipeline/source_sets/*.xlsx
+mmm_pipeline/source_sets/*.docx
+
+# ── Secrets / local env ──────────────────────────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+.private/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/

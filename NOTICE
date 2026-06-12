@@ -1,0 +1,40 @@
+mmm-vocabulary-mapping
+Copyright 2026 Emory University
+
+This product includes software and methods developed at Emory University
+Library & Information Technology Services for the OHDSI "Mind Meets Machine"
+(MMM) Vocabulary Edition challenge (OHDSI Europe Symposium, Rotterdam,
+2026-04-19), where the Emory submission placed 1st overall.
+
+This product contains derivative work from the following third parties.
+See ATTRIBUTION.md for full details, citations, and links.
+
+- omop-graph — author Georgie Kennedy (UNSW). Upstream:
+  https://github.com/AustralianCancerDataNetwork/omop-graph, release 0.2.0.
+  Licensed under the Apache License, Version 2.0.
+  The graph-traversal, pathfinding, term-grounding, and phenotype-simplification
+  modules in omop_vocab_core/ are a DERIVATIVE WORK of omop-graph: ported and
+  substantially redesigned for DuckDB, and MODIFIED from the upstream originals.
+  This distribution carries omop-graph's Apache-2.0 license at
+  omop_vocab_core/LICENSE.omop-graph and enumerates the derived files and the
+  changes made in omop_vocab_core/THIRD_PARTY_NOTICES.md. The derived layer is
+  not claimed to reproduce upstream behavior.
+
+- FastOMOP omcp — https://github.com/fastomop/omcp (King's College London / UCL /
+  NHS), MIT-licensed. The `omcp/` directory is a vendored copy derived from
+  `fastomop/omcp@4922d41` (read-only Select_Query / Get_Information_Schema SQL
+  tools), with modifications noted in ATTRIBUTION.md / PROVENANCE.md. The upstream
+  MIT license text is retained at omcp/LICENSE.
+
+- SapBERT — Liu et al., "Self-Alignment Pretraining for Biomedical Entity
+  Representations" (NAACL 2021). The model
+  `cambridgeltl/SapBERT-from-PubMedBERT-fulltext` is used to produce concept-name
+  embeddings. Not redistributed here; downloaded at runtime from Hugging Face.
+
+- OHDSI OMOP Standardized Vocabularies — the concept tables this software queries
+  are distributed by OHDSI via Athena (https://athena.ohdsi.org) under the
+  vocabulary providers' respective license terms. Not redistributed here.
+
+- The MMM challenge task, mapping rules, and train/test source sets are the work
+  of the challenge organizers (A. Ostropolets, M. Schuemie, T. Seinen,
+  M. Otten-Wagenaar). Source sets are NOT redistributed in this repository.

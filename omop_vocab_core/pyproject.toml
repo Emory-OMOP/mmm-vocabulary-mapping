@@ -1,0 +1,20 @@
+[project]
+name = "omop-vocab-core"
+version = "0.1.0"
+description = "Shared OMOP vocabulary query library — search, hierarchy, relationships, concept sets over DuckDB"
+requires-python = ">=3.13"
+dependencies = [
+    "duckdb>=1.4.4",
+]
+
+[project.optional-dependencies]
+embeddings = [
+    "sentence-transformers>=3.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/omop_vocab_core"]

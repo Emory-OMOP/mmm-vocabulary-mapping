@@ -1,0 +1,15 @@
+[project]
+name = "mmm-vocabulary-mapping"
+version = "0.1.0"
+description = "Emory's 1st-place vocabulary-mapping pipeline from the OHDSI Mind Meets Machine (MMM) Vocabulary Edition challenge — retrieval/grounding MCP server, Claude tool-loop backend, and deterministic concept_id validation."
+requires-python = ">=3.13"
+dependencies = [
+    "duckdb>=1.4.4",
+    "python-docx>=1.2.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "omop_vocab_core",
+    "mcp_server",
+]
