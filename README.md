@@ -4,7 +4,7 @@ This repository shares the vocabulary-mapping pipeline entered to the OHDSI **Mi
 
 ## The result
 
-The MMM Vocabulary Edition was a **procedures-only** task: map ~291 procedure source codes drawn from four institutions (native-language + English names) to OMOP Standard concepts, plus a mapping `predicate`. Emory's submission won 1st place overall and beat the human baseline on all three metrics:
+The MMM Vocabulary Edition was a **procedures-only** task: map ~291 procedure source codes drawn from four institutions (native-language + English names) to OMOP Standard concepts, plus a mapping `predicate`. Emory's submission beat the human baseline on all three metrics:
 
 | Metric | Emory | Human baseline |
 |---|---|---|
