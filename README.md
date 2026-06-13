@@ -12,7 +12,7 @@ The MMM Vocabulary Edition was a **procedures-only** task: map ~291 procedure so
 | Exact match | **80.0%** | 57.0% |
 | Broad match | **51.0%** | 32.4% |
 
-The winning configuration was deliberately simple: **one isolated, asynchronous API call per source row** to a FastAPI webapp running a Claude (Opus) MCP tool-loop against the `ohdsi-vocab` retrieval/grounding server, followed by **deterministic re-validation** of every emitted `concept_id` against the OMOP vocabulary. No subagent orchestration.
+The final configuration was deliberately simple: **one isolated, asynchronous API call per source row** to a FastAPI webapp running a Claude (Opus) MCP tool-loop against the `ohdsi-vocab` retrieval/grounding server, followed by **deterministic re-validation** of every emitted `concept_id` against the OMOP vocabulary. No subagent orchestration.
 
 ## Architecture — three layers
 
