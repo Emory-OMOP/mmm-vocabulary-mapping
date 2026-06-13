@@ -1,6 +1,6 @@
-# MMM Vocabulary Mapping — Emory's 1st-place OHDSI pipeline
+# MMM Vocabulary Mapping — Emory's OHDSI pipeline
 
-This repository shares the vocabulary-mapping pipeline that **Emory University placed 1st overall** with at the OHDSI **Mind Meets Machine (MMM) — Vocabulary Edition** challenge (OHDSI Europe Symposium, Rotterdam, **2026-04-19**). It is released for the OHDSI community as a faithful extract of the winning approach. The challenge itself — task, mapping rules, and data — lives at [`ohdsi-studies/MindsMeetMachinesVocab`](https://github.com/ohdsi-studies/MindsMeetMachinesVocab).
+This repository shares the vocabulary-mapping pipeline entered to the OHDSI **Mind Meets Machine (MMM) — Vocabulary Edition** challenge (OHDSI Europe Symposium, Rotterdam, **2026-04-19**). It is released for the OHDSI community as a faithful extract of the winning approach. The challenge itself — task, mapping rules, and data — lives at [`ohdsi-studies/MindsMeetMachinesVocab`](https://github.com/ohdsi-studies/MindsMeetMachinesVocab).
 
 ## The result
 
@@ -8,9 +8,9 @@ The MMM Vocabulary Edition was a **procedures-only** task: map ~291 procedure so
 
 | Metric | Emory | Human baseline |
 |---|---|---|
-| Overall | **64.0%** | 49.1% |
-| Exact match | **74.1%** | 57.0% |
-| Broad match | **45.4%** | 32.4% |
+| Overall | **70.0%** | 49.1% |
+| Exact match | **80.0%** | 57.0% |
+| Broad match | **51.0%** | 32.4% |
 
 The winning configuration was deliberately simple: **one isolated, asynchronous API call per source row** to a FastAPI webapp running a Claude (Opus) MCP tool-loop against the `ohdsi-vocab` retrieval/grounding server, followed by **deterministic re-validation** of every emitted `concept_id` against the OMOP vocabulary. No subagent orchestration.
 
@@ -56,11 +56,11 @@ mmm_pipeline/
 LICENSE / NOTICE / ATTRIBUTION.md / PROVENANCE.md
 ```
 
-This extract is **pinned to the winning commit** (`ee59d10`, the MMM submission). Post-win changes to the source repository are intentionally excluded. The exact source commits of every component in the as-run stack are recorded in [PROVENANCE.md](PROVENANCE.md).
+This extract is **pinned to the competition commit** (`ee59d10`, the MMM submission). Post-win changes to the source repository are intentionally excluded. The exact source commits of every component in the as-run stack are recorded in [PROVENANCE.md](PROVENANCE.md).
 
 ### What was intentionally left out
 
-To keep the repo to the winning vocabulary-mapping path, the following are **excluded**: the `circe-compiler`, `omop-sidecar` (lineage), and `concept-set-constructor` MCP servers; the webapp frontend; the conversation-history database (`sessions.db`); and the large data artifacts (see below). The agent runs on two MCP servers — `ohdsi-vocab` (the primary mapping path: `standard_via_nonstandard` + `ground_clinical_term` + `reveal_concept_ids`) and `omcp` (the read-only `Select_Query` / `Get_Information_Schema` SQL tools the winning run used for a meaningful fraction of rows). The deterministic `validate_against_vocab()` step queries DuckDB directly, independent of omcp.
+To keep the repo to the competition vocabulary-mapping path, the following are **excluded**: the `circe-compiler`, `omop-sidecar` (lineage), and `concept-set-constructor` MCP servers; the webapp frontend; the conversation-history database (`sessions.db`); and the large data artifacts (see below). The agent runs on two MCP servers — `ohdsi-vocab` (the primary mapping path: `standard_via_nonstandard` + `ground_clinical_term` + `reveal_concept_ids`) and `omcp` (the read-only `Select_Query` / `Get_Information_Schema` SQL tools the winning run used for a meaningful fraction of rows). The deterministic `validate_against_vocab()` step queries DuckDB directly, independent of omcp.
 
 ## Data (not in git)
 
