@@ -1,0 +1,34 @@
+# ohdsi-vocab MCP server (Layer 1: retrieval + grounding).
+# Build context = repo root (needs the omop_vocab_core workspace member).
+#   docker build -f docker/Dockerfile.ohdsi-vocab -t mmm/ohdsi-vocab .
+#
+# Multi-stage: uv resolves the env in the builder; the runtime is a plain
+# python-slim image with the venv copied in (no uv, no per-start resync).
+
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+# Workspace root + the two members the server needs (omop_vocab_core is a
+# workspace dependency of mcp_server). Installs omop-vocab-core[embeddings]
+# → SapBERT via sentence-transformers / torch.
+COPY pyproject.toml ./
+COPY omop_vocab_core/ ./omop_vocab_core/
+COPY mcp_server/ ./mcp_server/
+RUN uv sync --no-dev
+
+FROM python:3.13-slim-bookworm
+WORKDIR /app
+# libgomp1: OpenMP runtime required by torch at import.
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /app /app
+ENV PATH="/app/.venv/bin:$PATH" \
+    MCP_TRANSPORT=streamable-http \
+    MCP_HOST=0.0.0.0 \
+    MCP_PORT=8001 \
+    OHDSI_VOCAB_SCHEMA=main_vocab
+EXPOSE 8001
+# DuckDB + embedding mounts and OHDSI_DUCKDB_PATH / *_EMBEDDINGS_DB are
+# provided at runtime (docker-compose.yml). SapBERT downloads to a mounted
+# HF cache on first run.
+CMD ["python", "mcp_server/server.py"]

@@ -76,10 +76,10 @@ By default the code expects all three at the **repo root**; override with `OHDSI
 
 Exact data-standard versions (OMOP CDM v5.4 / OMOP Vocabularies Athena v5.0, 2025-02-27) and licenses are in [PROVENANCE.md](PROVENANCE.md).
 
-**Getting the vocabulary:**
+### Getting the OMOP vocabulary DuckDB
 
 1. Download the OMOP **vocabularies** from OHDSI **Athena** (<https://athena.ohdsi.org>, release v5.0 / 27-FEB-25 — SNOMED, ICD10CM, ICD9CM, RxNorm, RxNorm Extension, LOINC, CPT4, HCPCS, NDC, CVX, …) under the vocabulary providers' license terms. (The vocabulary content is **not** redistributable — it must come from Athena under your own license.)
-2. Load the Athena CSVs into a DuckDB `main_vocab` schema (the tab-delimited files map 1:1 to the tables above), e.g. in `duckdb mydb.duckdb`:
+2. Load the Athena CSVs into a DuckDB `main_vocab` schema (the tab-delimited files map 1:1 to the tables above), e.g. in `duckdb omop_vocab.duckdb`:
    ```sql
    CREATE SCHEMA main_vocab;
    CREATE TABLE main_vocab.concept AS
@@ -89,62 +89,60 @@ Exact data-standard versions (OMOP CDM v5.4 / OMOP Vocabularies Athena v5.0, 202
    ```
    Point `OHDSI_DUCKDB_PATH` at the result.
 
-**Embeddings** (the two SapBERT indexes above) are a **derivative of the licensed vocabulary names (SNOMED CT, CPT4, …), so they are never distributed** — you regenerate them locally from your own rehydrated vocabulary, the same bring-your-own-licensed-source pattern as the vocabulary itself. Pull the model from its source — Hugging Face `cambridgeltl/SapBERT-from-PubMedBERT-fulltext` at the pinned revision **`090663c3ae57bf35ffe4d0d468a2a88d03051a4d`** (`sentence-transformers` downloads it at runtime; the code defaults to this revision via `OHDSI_EMBED_REVISION`, so encode with the same `revision=` for byte-stable weights). Then, for each index — **Standard** (`standard_concept='S' AND invalid_reason IS NULL`) and **non-standard** (`COALESCE(standard_concept,'X')!='S' AND invalid_reason IS NULL`):
+### Generating the SapBERT embeddings
 
-1. Read `concept_name` from `main_vocab.concept` with that filter, `ORDER BY concept_id`, and encode each with SapBERT (`normalize_embeddings=True`, 768-dim, name only). Save a float32 `(N, 768)` `.npy` in that same row order.
-2. Build the queryable DuckDB + HNSW index: `uv run mmm_pipeline/scripts/write_db_fast.py --npy <file>.npy --vocab-db "$OHDSI_DUCKDB_PATH" --filter standard|nonstandard --out concept_embeddings[_nonstandard].duckdb`.
+The **two** SapBERT indexes — `concept_embeddings.duckdb` (Standard) and `concept_embeddings_nonstandard.duckdb` (non-standard) — are a **derivative of the licensed vocabulary names (SNOMED CT, CPT4, …), so they are never distributed**. You regenerate them locally from the vocabulary DuckDB above (same bring-your-own-licensed-source pattern). Pull the model from its source — Hugging Face `cambridgeltl/SapBERT-from-PubMedBERT-fulltext` at the pinned revision **`090663c3ae57bf35ffe4d0d468a2a88d03051a4d`** (`sentence-transformers` downloads it at runtime; the code defaults to this revision via `OHDSI_EMBED_REVISION`, so encode with the same `revision=` for byte-stable weights). Build **each** index:
 
-`mmm_pipeline/scripts/generate_embeddings_nonstandard.sh` wraps step 2 for the non-standard index (point `EMBED_PHASE1` at your step-1 encoder). The `.npy`/`.duckdb` outputs are git-ignored and must never be committed.
+1. Read `concept_name` from `main_vocab.concept` with the index's filter — **Standard** `standard_concept='S' AND invalid_reason IS NULL`, **non-standard** `COALESCE(standard_concept,'X')!='S' AND invalid_reason IS NULL` — `ORDER BY concept_id`, and encode each name with SapBERT (`normalize_embeddings=True`, 768-dim, name only). Save a float32 `(N, 768)` `.npy` in that same row order.
+2. Build the queryable DuckDB + HNSW index with [`mmm_pipeline/scripts/write_db_fast.py`](mmm_pipeline/scripts/write_db_fast.py):
+   ```bash
+   # Standard index → concept_embeddings.duckdb
+   uv run mmm_pipeline/scripts/write_db_fast.py --npy standard.npy \
+       --vocab-db "$OHDSI_DUCKDB_PATH" --filter standard --out concept_embeddings.duckdb
+   # Non-standard index → concept_embeddings_nonstandard.duckdb
+   uv run mmm_pipeline/scripts/write_db_fast.py --npy nonstandard.npy \
+       --vocab-db "$OHDSI_DUCKDB_PATH" --filter nonstandard --out concept_embeddings_nonstandard.duckdb
+   ```
 
-## Setup
+[`mmm_pipeline/scripts/generate_embeddings_nonstandard.sh`](mmm_pipeline/scripts/generate_embeddings_nonstandard.sh) wraps step 2 for the non-standard index (point `EMBED_PHASE1` at your step-1 encoder). The `.npy` / `.duckdb` outputs are git-ignored and must never be committed.
+
+## Run the stack
+
+Two ways to bring up the three services (`ohdsi-vocab` :8001, `omcp` :8003, `webapp` :8000). Both assume you've built the vocabulary DuckDB and the two embedding DuckDBs above.
+
+### Option A — Docker (recommended)
+
+Requires Docker + Compose.
+
+```bash
+cp .env.example .env
+# edit .env:
+#   ANTHROPIC_API_KEY   your Claude API key
+#   BETA_PASSKEY        a passkey you invent; gates the webapp login (any string)
+#   VOCAB_DUCKDB / EMBEDDINGS_DB / NONSTD_EMBEDDINGS_DB   absolute data paths
+docker compose up --build
+```
+
+This builds and runs all three services, bind-mounting your DuckDBs read-only and wiring the webapp to both MCP servers. The webapp injects the MMM system prompt automatically. Health check: `curl -s localhost:8000/api/health`. Full step-by-step (build → verify → run → tear down) is in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+
+### Option B — local (uv, no Docker)
 
 Requires Python ≥ 3.13 and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-# 1. Install workspace deps (omop_vocab_core + mcp_server)
-uv sync
-
-# 2. Point at the vocabulary DuckDB (and embeddings, if not at repo root)
-export OHDSI_DUCKDB_PATH=/path/to/omop_vocab.duckdb
-export OHDSI_VOCAB_SCHEMA=main_vocab
-# export OHDSI_EMBEDDINGS_DB=/path/to/concept_embeddings.duckdb
-# export OHDSI_NONSTANDARD_EMBEDDINGS_DB=/path/to/concept_embeddings_nonstandard.duckdb
-
-# 3. Start the ohdsi-vocab MCP server (Layer 1) on :8001
-cd mcp_server
-MCP_TRANSPORT=streamable-http MCP_PORT=8001 uv run python server.py
+export OHDSI_DUCKDB_PATH=/abs/path/to/omop_vocab.duckdb
+export OHDSI_EMBEDDINGS_DB=/abs/path/to/concept_embeddings.duckdb
+export OHDSI_NONSTANDARD_EMBEDDINGS_DB=/abs/path/to/concept_embeddings_nonstandard.duckdb
+export ANTHROPIC_API_KEY=sk-ant-...
+export BETA_PASSKEY=choose-a-passkey
+bash scripts/start.sh          # starts all three; Ctrl+C stops them
 ```
 
-```bash
-# 4. Start the omcp read-only SQL server on :8003, in a second shell
-cd omcp
-uv sync
-export DB_TYPE=duckdb
-export DB_PATH="$OHDSI_DUCKDB_PATH"      # same DuckDB as the vocab server
-export DB_READ_ONLY=true
-export VOCAB_SCHEMA=main_vocab
-export CDM_SCHEMA=main_vocab          # vocab-only load has no CDM schema; point it at main_vocab
-export ENABLE_LANGFUSE=false
-MCP_TRANSPORT=streamable-http MCP_HOST=0.0.0.0 MCP_PORT=8003 uv run omcp
-```
-
-```bash
-# 5. Start the webapp backend (Layer 2) on :8000, in a third shell
-cd webapp
-uv sync
-export ANTHROPIC_API_KEY=sk-...               # your key
-export BETA_PASSKEY=choose-a-passkey          # gate for /api/auth/login
-export DEFAULT_PROVIDER=claude
-export DEFAULT_MODEL=claude-opus-4-7          # the model the winning run used
-export MCP_OHDSI_VOCAB_URL=http://localhost:8001/mcp
-export MCP_OMCP_URL=http://localhost:8003/mcp
-export SYSTEM_PROMPT="$(uv run python -c 'sys=__import__("sys"); sys.path.insert(0,"../mmm_pipeline/scripts"); import system_prompt; print(system_prompt.SYSTEM_PROMPT)')"
-uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-
-The MMM system prompt (task + verbatim mapping rules + tool guidance + output schema) lives in `mmm_pipeline/scripts/system_prompt.py` and is injected into the backend via the `SYSTEM_PROMPT` environment variable.
+In both options the MMM system prompt (task + verbatim mapping rules + tool guidance + output schema) lives in `mmm_pipeline/scripts/system_prompt.py` and is injected into the backend via the `SYSTEM_PROMPT` environment variable.
 
 ## Run the pipeline
+
+The pipeline runs on the **host** (Python ≥ 3.13 + [`uv`](https://docs.astral.sh/uv/)): it calls the webapp over HTTP, and the deterministic re-validation + submission formatting open the vocabulary DuckDB directly — so set `OHDSI_DUCKDB_PATH` to the same vocabulary file the stack uses.
 
 ```bash
 cd mmm_pipeline/scripts
@@ -153,6 +151,8 @@ export OHDSI_AGENT_FASTAPI_URL=http://localhost:8000
 export OHDSI_AGENT_FASTAPI_PASSKEY=choose-a-passkey   # same as BETA_PASSKEY
 export OHDSI_AGENT_FASTAPI_MODEL=claude-opus-4-7
 export OHDSI_AGENT_FASTAPI_PROVIDER=claude
+export OHDSI_DUCKDB_PATH=/abs/path/to/omop_vocab.duckdb   # for host-side validation/formatting
+export OHDSI_VOCAB_SCHEMA=main_vocab
 
 # 1. Map every test row (one isolated async /api/chat call per source row)
 uv run mmm_pipeline_api.py ../source_sets/test_set.xlsx --out ../results/api_test.csv --concurrency 10
@@ -175,6 +175,8 @@ uv run score_vs_truth.py ../results/api_train.csv --truth ../source_sets/train_s
 
 ## Documentation
 
+- `mmm_pipeline/docs/request_lifecycle.md` — **soup-to-nuts**: how one input row becomes one output row (every deterministic step + the single LLM step), with the full pipeline diagram.
+- `mmm_pipeline/docs/technology_stack.md` — every required technology/package, why it exists, and which pipeline stage it serves.
 - `mmm_pipeline/docs/methodology.md` — the approach end to end.
 - `mmm_pipeline/docs/prompt_engineering.md` — how the system prompt was designed.
 - `mmm_pipeline/docs/graph_tools_and_semantic_search.md` — retrieval/grounding internals.

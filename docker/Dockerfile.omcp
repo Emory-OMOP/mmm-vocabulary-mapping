@@ -1,0 +1,27 @@
+# omcp — read-only OMOP SQL MCP server (Select_Query / Get_Information_Schema).
+# Build context = repo root.
+#   docker build -f docker/Dockerfile.omcp -t mmm/omcp .
+#
+# Multi-stage: uv builds the venv; runtime is plain python-slim (no uv).
+
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+COPY omcp/ /app/
+RUN uv sync --no-dev
+
+FROM python:3.13-slim-bookworm
+WORKDIR /app
+COPY --from=builder /app /app
+ENV PATH="/app/.venv/bin:$PATH" \
+    DB_TYPE=duckdb \
+    DB_READ_ONLY=true \
+    ENABLE_LANGFUSE=false \
+    MCP_TRANSPORT=streamable-http \
+    MCP_HOST=0.0.0.0 \
+    MCP_PORT=8003 \
+    FASTMCP_HOST=0.0.0.0 \
+    FASTMCP_PORT=8003
+EXPOSE 8003
+# DB_PATH / CDM_SCHEMA / VOCAB_SCHEMA provided at runtime (docker-compose.yml).
+CMD ["omcp"]
