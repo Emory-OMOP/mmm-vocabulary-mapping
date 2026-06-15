@@ -175,6 +175,7 @@ uv run score_vs_truth.py ../results/api_train.csv --truth ../source_sets/train_s
 
 ## Documentation
 
+- `mmm_pipeline/docs/request_lifecycle.md` — **soup-to-nuts**: how one input row becomes one output row (every deterministic step + the single LLM step), with the full pipeline diagram.
 - `mmm_pipeline/docs/methodology.md` — the approach end to end.
 - `mmm_pipeline/docs/prompt_engineering.md` — how the system prompt was designed.
 - `mmm_pipeline/docs/graph_tools_and_semantic_search.md` — retrieval/grounding internals.
