@@ -1,0 +1,65 @@
+# One-command bring-up of the MMM vocabulary-mapping stack:
+#   ohdsi-vocab (:8001) + omcp (:8003) + webapp (:8000).
+#
+#   cp .env.example .env      # fill in the three data paths + ANTHROPIC_API_KEY + BETA_PASSKEY
+#   docker compose up --build
+#
+# Prerequisite: you have already built the OMOP vocabulary DuckDB and the two
+# SapBERT embedding DuckDBs locally (see README "Data"). They are bind-mounted
+# read-only from the host paths set in .env.
+#
+# Then run the pipeline against the webapp (host side):
+#   cd mmm_pipeline/scripts && uv run mmm_pipeline_api.py ../source_sets/test_set.xlsx --out ../results/api_test.csv
+
+services:
+  ohdsi-vocab:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ohdsi-vocab
+    ports:
+      - "8001:8001"
+    environment:
+      OHDSI_DUCKDB_PATH: /data/omop_vocab.duckdb
+      OHDSI_EMBEDDINGS_DB: /data/concept_embeddings.duckdb
+      OHDSI_NONSTANDARD_EMBEDDINGS_DB: /data/concept_embeddings_nonstandard.duckdb
+      OHDSI_VOCAB_SCHEMA: main_vocab
+    volumes:
+      - ${VOCAB_DUCKDB:?set VOCAB_DUCKDB in .env}:/data/omop_vocab.duckdb:ro
+      - ${EMBEDDINGS_DB:?set EMBEDDINGS_DB in .env}:/data/concept_embeddings.duckdb:ro
+      - ${NONSTD_EMBEDDINGS_DB:?set NONSTD_EMBEDDINGS_DB in .env}:/data/concept_embeddings_nonstandard.duckdb:ro
+      - hf-cache:/root/.cache/huggingface   # SapBERT downloads here once
+
+  omcp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.omcp
+    ports:
+      - "8003:8003"
+    environment:
+      DB_PATH: /data/omop_vocab.duckdb
+      CDM_SCHEMA: main_vocab     # vocab-only DB has no CDM schema
+      VOCAB_SCHEMA: main_vocab
+    volumes:
+      - ${VOCAB_DUCKDB:?set VOCAB_DUCKDB in .env}:/data/omop_vocab.duckdb:ro
+
+  webapp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.webapp
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ohdsi-vocab
+      - omcp
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in .env}
+      BETA_PASSKEY: ${BETA_PASSKEY:?set BETA_PASSKEY in .env}
+      JWT_SECRET: ${JWT_SECRET:-changeme-jwt-secret}
+      DEFAULT_PROVIDER: claude
+      DEFAULT_MODEL: ${OHDSI_AGENT_MODEL:-claude-opus-4-7}
+      MCP_OHDSI_VOCAB_URL: http://ohdsi-vocab:8001/mcp
+      MCP_OMCP_URL: http://omcp:8003/mcp
+      LANGFUSE_ENABLED: "false"
+
+volumes:
+  hf-cache:

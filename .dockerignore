@@ -1,0 +1,31 @@
+# Keep the build context small — never ship data, venvs, or git history.
+.git
+.gitignore
+**/.venv
+.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Large data artifacts (must never enter an image)
+*.duckdb
+*.duckdb.wal
+*.npy
+*.npz
+data/
+webapp/data/
+*.sqlite
+*.sqlite3
+
+# Secrets / local env (but keep the example)
+.env
+.env.*
+!.env.example
+
+# Challenge source data
+mmm_pipeline/source_sets/*.xlsx
+mmm_pipeline/source_sets/*.docx
+
+.DS_Store

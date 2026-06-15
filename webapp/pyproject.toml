@@ -14,3 +14,8 @@ dependencies = [
     "fastmcp>=2.0.0",
     "langfuse>=3.0.0",
 ]
+
+# The backend is run via uvicorn (backend.main:app), not installed as a package,
+# so uv should resolve/install dependencies only — not try to build this project.
+[tool.uv]
+package = false

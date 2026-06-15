@@ -1,0 +1,28 @@
+# webapp backend (Layer 2: the /api/chat Claude tool-loop).
+# Build context = repo root (bundles the MMM system prompt for SYSTEM_PROMPT).
+#   docker build -f docker/Dockerfile.webapp -t mmm/webapp .
+#
+# Multi-stage: uv builds the dependency venv; runtime is plain python-slim.
+
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+WORKDIR /app
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+# Dependencies only (webapp is run via uvicorn, not installed as a package).
+COPY webapp/pyproject.toml ./
+RUN uv sync --no-dev
+
+FROM python:3.13-slim-bookworm
+WORKDIR /app
+COPY --from=builder /app/.venv /app/.venv
+COPY webapp/backend/ ./backend/
+# The MMM system prompt is injected via SYSTEM_PROMPT at startup (see entrypoint).
+COPY mmm_pipeline/scripts/system_prompt.py ./mmm_prompt/system_prompt.py
+COPY docker/webapp-entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENV PATH="/app/.venv/bin:$PATH" \
+    DEFAULT_PROVIDER=claude \
+    DEFAULT_MODEL=claude-opus-4-7 \
+    MCP_OHDSI_VOCAB_URL=http://ohdsi-vocab:8001/mcp \
+    MCP_OMCP_URL=http://omcp:8003/mcp
+EXPOSE 8000
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
